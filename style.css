@@ -15,7 +15,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--ink); background: #fff; line-height: 1.65; }
-.package-name { font-family: "Courier New", Courier, monospace; font-size: inherit; font-weight: inherit; }
+.package-name { font-family: "Courier New", Courier, monospace; font-size: inherit; font-weight: 400; }
 .inner { width: min(1080px, calc(100% - 64px)); margin-inline: auto; }
 a { color: var(--bordeaux); text-underline-offset: 3px; }
 a:hover { color: var(--bordeaux-dark); text-decoration-thickness: 2px; }
