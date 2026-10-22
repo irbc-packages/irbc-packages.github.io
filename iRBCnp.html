@@ -2,81 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>iRBCnp</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+  <meta http-equiv="refresh" content="0; url=./#irbcnp">
+  <link rel="canonical" href="https://irbc-packages.github.io/#irbcnp">
+  <title>iRBCnp | Work in progress</title>
 </head>
-
-<body>
-
-  <header>
-    <div class="inner">
-      <h1>improved Robust Bias Correction</h1>
-      <nav>
-        <a href="index.html">Welcome</a>
-        <a href="iRBCrd.html">iRBCrd</a>
-        <a href="iRBCnp.html" class="active">mPLPnp</a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <div class="inner">
-      <h2>iRBCnp</h2>
-
-      <p>
-        The package <span class="sans">mPLPrd</span> performs inference in the context of nonparametric regression using the iRBC approach of Cavaliere et al. (2026).
-        The software provides the user (bias-corrected) estimators of nonlinear conditional expectations based on local polynomials, as well as confidence intervals, standard errors, and more.
-      </p>
-
-      <p>
-        <a href="#" id="download-folder">Download</a>.
-      </p>
-    </div>
-  </main>
-
-  <footer>
-    <div class="inner">
-      <p>&copy; 2026: Giuseppe Cavaliere, Sílvia Gonçalves, Morten Ø. Nielsen, Edoardo Zanelli.</p>
-    </div>
-  </footer>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <script>
-    document.getElementById("download-folder").addEventListener("click", async function (e) {
-        e.preventDefault(); // stop page jump
-
-        const owner = "pppackages";
-        const repo = "iRBCnp";
-        const folderPath = "R";
-        const branch = "main";
-
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folderPath}?ref=${branch}`;
-        const zip = new JSZip();
-
-        try {
-            const response = await fetch(apiUrl);
-            const files = await response.json();
-
-            for (const file of files) {
-                if (file.type === "file") {
-                    const fileResponse = await fetch(file.download_url);
-                    const blob = await fileResponse.blob();
-                    zip.file(file.name, blob);
-                }
-            }
-
-            const zipContent = await zip.generateAsync({ type: "blob" });
-            saveAs(zipContent, "iRBCnp_R.zip");
-
-        } catch (error) {
-            alert("Download failed.");
-            console.error(error);
-        }
-      
-    });
-  </script>
-
-</body>
+<body><p>iRBCnp is work in progress. <a href="./#irbcnp">View the packages page.</a></p></body>
 </html>

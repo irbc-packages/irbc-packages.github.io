@@ -2,49 +2,88 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>iRBC – Welcome</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="iRBC software for improved robust bias correction. Download iRBCrd 2.0 for regression discontinuity designs and find the related research.">
+  <title>iRBC | Improved Robust Bias Correction</title>
+  <link rel="canonical" href="https://irbc-packages.github.io/">
   <link rel="stylesheet" href="style.css">
+  <script src="site.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#packages">Skip to packages</a>
+  <header class="site-header">
+    <div class="inner">
+      <h1>improved Robust Bias Correction</h1>
+      <nav aria-label="Main navigation">
+        <a href="#packages" aria-current="location">Packages</a>
+        <a href="#references">References</a>
+      </nav>
+    </div>
+  </header>
 
-<header>
-  <div class="inner">
-    <h1>improved Robust Bias Correction</h1>
-    <nav>
-      <a href="index.html" class="active">Welcome</a>
-      <a href="iRBCrd.html">iRBCrd</a>
-      <a href="iRBCnp.html">iRBCnp</a>
-    </nav>
-  </div>
-</header>
+  <main>
+    <section id="packages" aria-labelledby="packages-title">
+      <div class="inner">
+        <h2 id="packages-title">Packages</h2>
+        <p class="section-intro">Software for improved inference in regression discontinuity designs and nonparametric regression.</p>
+        <div class="package-grid">
+          <article class="package" id="irbcrd" aria-labelledby="irbcrd-title">
+            <div class="package-heading">
+              <h3 id="irbcrd-title">iRBCrd</h3>
+              <span class="release"><img src="assets/r-logo.jpg" width="32" height="24" alt="R">Version 2.0</span>
+            </div>
+            <p class="package-subtitle">Regression discontinuity</p>
+            <p>Analytic and plug-in wild bootstrap inference for sharp and fuzzy designs, with or without covariate adjustment.</p>
+            <p class="package-detail">Available as sourceable R functions.</p>
+            <div class="package-links">
+              <a class="download" href="downloads/iRBCrd/2.0/iRBCrd_R_2.0.zip" download><img src="assets/download.svg" width="17" height="17" alt="">Download for R</a>
+              <a href="downloads/iRBCrd/2.0/README.txt">Manual</a>
+              <a href="downloads/iRBCrd/2.0/examples.R" download>Examples</a>
+            </div>
+            <p class="source-links">Source files:
+              <a href="downloads/iRBCrd/2.0/iRBCrd.R" download>iRBCrd.R</a>
+              <span aria-hidden="true">/</span>
+              <a href="downloads/iRBCrd/2.0/iRBC_functions.R" download>iRBC_functions.R</a>
+            </p>
+          </article>
 
-<main>
-  <div class="inner">
-    <h2>Welcome</h2>
-    <p> This website contains software for improved inference procedures for regression-discontinuity designs and nonparametric regression. </p>
-    <p><a href="https://irbc-packages.github.io/iRBCrd.html"><strong>iRBCrd</strong></a> implements iRBC for sharp, kink, and fuzzy regression discontinuity designs.</p>
-    <p><a href="https://irbc-packages.github.io/iRBCnp.html"><strong>iRBCnp</strong></a> implements iRBC for nonparametric regression.</p>
-  </div>
-</main>
+          <article class="package package-pending" id="irbcnp" aria-labelledby="irbcnp-title">
+            <div class="package-heading">
+              <h3 id="irbcnp-title">iRBCnp</h3>
+              <span class="status">Work in progress</span>
+            </div>
+            <p class="package-subtitle">Nonparametric regression</p>
+            <p>Improved robust bias correction for nonparametric regression.</p>
+            <p class="package-detail">The software is under development. No version is currently available for download.</p>
+          </article>
+        </div>
+      </div>
+    </section>
 
-  <section class="bibliography">
-  <div class="inner">
-    <h2>Bibliography</h2>
-    <ul>
-      <li> <font size="-1"> Cavaliere, G., Gonçalves, S., Nielsen, M. Ø., Zanelli, E. (2026): <a href="https://arxiv.org/abs/2512.00566">Improved Inference for Nonparametric Regression and Regression-Discontinuity Designs</a>, <i>arXiv:2512.00566</i>.</li>
-      <li> <font size="-1"> Cavaliere, G., Gonçalves, S., Nielsen, M. Ø., Zanelli, E. (2024): <a href="https://www.tandfonline.com/doi/full/10.1080/01621459.2023.2284980">Bootstrap Inference in the Presence of Bias</a>, <b><i>Journal of the American Statistical Association</i></b>, 119(548), 2908-2918.</li>
-    </ul>
-  </div>
-</section>
+    <section id="references" aria-labelledby="references-title">
+      <div class="inner">
+        <h2 id="references-title">References</h2>
+        <ol class="reference-list">
+          <li>
+            Cavaliere, G., Gonçalves, S., Nielsen, M. Ø., and Zanelli, E. (2026).
+            <a href="https://arxiv.org/abs/2512.00566">Improved Inference for Nonparametric Regression and Regression-Discontinuity Designs</a>.
+            <em>arXiv:2512.00566</em>.
+          </li>
+          <li>
+            Cavaliere, G., Gonçalves, S., Nielsen, M. Ø., and Zanelli, E. (2024).
+            <a href="https://doi.org/10.1080/01621459.2023.2284980">Bootstrap Inference in the Presence of Bias</a>.
+            <em>Journal of the American Statistical Association</em>, 119(548), 2908-2918.
+          </li>
+        </ol>
+      </div>
+    </section>
+  </main>
 
-
-<footer>
-  <div class="inner">
-  <p>&copy; 2025: Giuseppe Cavaliere, Sílvia Gonçalves, Morten Ø. Nielsen, Edoardo Zanelli.</p>
-  </div>
-</footer>
-
-
+  <footer>
+    <div class="inner">
+      <p>&copy; 2026 Giuseppe Cavaliere, Sílvia Gonçalves, Morten Ørregaard Nielsen, and Edoardo Zanelli.</p>
+      <a href="https://github.com/irbc-packages/irbc-packages.github.io">GitHub</a>
+    </div>
+  </footer>
 </body>
 </html>

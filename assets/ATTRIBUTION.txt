@@ -1,0 +1,6 @@
+r-logo.jpg: R logo from the official R distribution, doc/html/logo.jpg.
+R Project: https://www.r-project.org/
+
+download.svg: Lucide, lucide-static 0.468.0.
+Source: https://unpkg.com/lucide-static@0.468.0/icons/download.svg
+License notice: lucide-LICENSE.txt (ISC).
