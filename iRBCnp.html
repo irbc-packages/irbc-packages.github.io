@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Prepivoting Packages – iRBCnp</title>
+  <title>iRBCnp</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,8 +14,8 @@
       <h1>Prepivoting Packages</h1>
       <nav>
         <a href="index.html">Welcome</a>
-        <a href="mPLPrd.html">iRBCrd</a>
-        <a href="mPLPnp.html" class="active">mPLPnp</a>
+        <a href="iRBCrd.html">iRBCrd</a>
+        <a href="iRBCnp.html" class="active">mPLPnp</a>
       </nav>
     </div>
   </header>
@@ -48,7 +48,7 @@
         e.preventDefault(); // stop page jump
 
         const owner = "pppackages";
-        const repo = "mPLPnp";
+        const repo = "iRBCnp";
         const folderPath = "R";
         const branch = "main";
 
@@ -68,7 +68,7 @@
             }
 
             const zipContent = await zip.generateAsync({ type: "blob" });
-            saveAs(zipContent, "mPLPnp_R.zip");
+            saveAs(zipContent, "iRBCnp_R.zip");
 
         } catch (error) {
             alert("Download failed.");
