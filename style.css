@@ -41,8 +41,11 @@ h2 { margin: 0 0 14px; color: var(--bordeaux-dark); font-size: 26px; line-height
 .package-subtitle { margin: 7px 0 16px; color: var(--muted); font-size: 15px; }
 .package p:not(.package-subtitle) { margin-top: 0; margin-bottom: 16px; }
 .package-detail { color: var(--muted); font-size: 14px; }
-.package-links { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 19px; margin-top: 22px; font-size: 14px; }
-.download { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; padding: 8px 15px; border: 1px solid var(--bordeaux); border-radius: 4px; background: var(--bordeaux); color: #fff; font-weight: 600; text-decoration: none; }
+.package-downloads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 320px; margin-top: 22px; }
+.package-download { min-width: 0; }
+.package-links { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 14px; margin-top: 9px; font-size: 14px; }
+.download { display: inline-flex; width: 100%; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 8px 15px; border: 1px solid var(--bordeaux); border-radius: 4px; background: var(--bordeaux); color: #fff; font-weight: 600; text-decoration: none; }
+.package p.download-status { margin-top: 14px; margin-bottom: 0; }
 .download img { filter: brightness(0) invert(1); }
 .download:hover { color: #fff; background: var(--bordeaux-dark); }
 .package-pending { border-top-color: #92979e; background: #fafbfc; }

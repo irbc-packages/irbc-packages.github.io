@@ -6,7 +6,7 @@
   <meta name="description" content="iRBC software for improved robust bias correction. Download iRBCrd 2.0 for regression discontinuity designs and find the related research.">
   <title>iRBC | Improved Robust Bias Correction</title>
   <link rel="canonical" href="https://irbc-packages.github.io/">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="site.js" defer></script>
 </head>
 <body>
@@ -33,11 +33,23 @@
             </div>
             <p class="package-subtitle">Regression discontinuity designs</p>
             <p>Analytic and bootstrap inference for sharp and fuzzy designs, with or without covariate adjustment.</p>
-            <div class="package-links">
-              <a class="download" href="downloads/iRBCrd/2.0/iRBCrd_R_2.0.zip" download><img src="assets/download.svg" width="17" height="17" alt="">Download for R</a>
-              <a href="downloads/iRBCrd/2.0/README.txt">Manual</a>
-              <a href="downloads/iRBCrd/2.0/examples.R" download>Examples</a>
+            <div class="package-downloads">
+              <div class="package-download">
+                <a class="download" href="downloads/iRBCrd/2.0/iRBCrd_R_2.0.zip" download aria-label="Download iRBCrd for R"><img src="assets/download.svg" width="17" height="17" alt="">R</a>
+                <div class="package-links">
+                  <a href="downloads/iRBCrd/2.0/README.txt" aria-label="R manual">Manual</a>
+                  <a href="downloads/iRBCrd/2.0/examples.R" download aria-label="R examples">Examples</a>
+                </div>
+              </div>
+              <div class="package-download">
+                <a class="download" href="downloads/iRBCrd/2.0/stata/iRBCrd_Stata_2.0_development.zip" download aria-label="Download iRBCrd for Stata, development build" aria-describedby="stata-status"><img src="assets/download.svg" width="17" height="17" alt="">STATA</a>
+                <div class="package-links">
+                  <a href="downloads/iRBCrd/2.0/stata/README.txt" aria-label="Stata manual">Manual</a>
+                  <a href="downloads/iRBCrd/2.0/stata/examples.do" download aria-label="Stata examples">Examples</a>
+                </div>
+              </div>
             </div>
+            <p class="package-detail download-status" id="stata-status">Stata: development build; not yet validated in Stata.</p>
           </article>
 
           <article class="package package-pending" id="irbcnp" aria-labelledby="irbcnp-title">
