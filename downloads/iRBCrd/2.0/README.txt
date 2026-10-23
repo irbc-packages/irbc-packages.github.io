@@ -1,5 +1,5 @@
 iRBCrd: IMPROVED ROBUST BIAS CORRECTION FOR RD DESIGNS
-Version 2.0 -- October 22, 2026
+Version 2.0 -- October 23, 2026
 Website: https://irbc-packages.github.io/
 
 AUTHORS AND CONTACTS
@@ -298,15 +298,8 @@ first-stage estimates, covariate slopes, covariance matrices, and sharp.*
 component objects. Residual arrays are computational inputs over their local
 support, not a full-sample diagnostic for fitted values.
 
-10. SCOPE AND REFERENCES
-------------------------
-This release estimates discontinuities in levels, not regression-kink effects.
-It does not implement clustered standard errors, an internal bandwidth
-selector, automatic missing-value handling, or weak-first-stage-robust
-confidence sets. Adequate support, nonsingular fits, a usable first stage,
-and the appropriate covariate continuity assumptions remain necessary.
-Shorter intervals alone do not establish correct coverage.
-
+10. REFERENCES
+---------------
 Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E.:
   Improved Inference for Regression Discontinuity Designs (current manuscript).
   Earlier public version: Improved Inference for Nonparametric Regression
