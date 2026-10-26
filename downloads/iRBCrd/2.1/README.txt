@@ -45,6 +45,7 @@ examples.R        Reproducible level and kink examples.
 CHANGELOG.txt     Release overview.
 smoke_test.R      Standalone interface and bootstrap checks.
 kink_test.R       Independent kink formulas, bootstrap refits, and option checks.
+output_test.R     Returned-field and bandwidth-reporting checks for all designs.
 VERIFICATION.txt  Summary of the development regression checks.
 CONTACT_SOURCES.txt  Sources used to verify the institutional contacts.
 
@@ -62,6 +63,7 @@ To run the examples or standalone checks after setting the working directory:
   source("examples.R")
   source("smoke_test.R")
   source("kink_test.R")
+  source("output_test.R")
 
 The functions can be used in R, RStudio, or via Rscript. They do not require
 RStudio or a compiler. This release was tested in R 4.5.2 on macOS.
@@ -173,8 +175,9 @@ any further bandwidth enlargement in the level pilots used for the bias.
 Kink bias, variance, and bootstrap calculations use the same coefficient maps,
 including when a pilot neighborhood is enlarged.
 
-Returned h.requested, h.minus, and h.plus describe the requested and effective
-cutoff bandwidths, not the bandwidth at every auxiliary fitting point. This
+Returned h is a named list of requested minus/plus bandwidths after any side
+overrides. h.minus and h.plus report the effective cutoff bandwidths, not the
+bandwidth at every auxiliary fitting point. This
 rule does not guarantee full rank with ties, collinearity, or zero endpoint
 kernel weights. Do not trim the data to the cutoff h window before calling
 iRBCrd(): auxiliary fits need observations outside that window. Bias and
@@ -257,8 +260,8 @@ Rademacher weights take -1 or 1 with equal probability. Mammen weights use
 the usual mean-zero, variance-one asymmetric two-point distribution. Normal
 weights are also available. Bootstrap quantiles have simulation error,
 especially at high confidence levels. B = 999 is a default, not a guarantee
-of accurate tail quantiles. Inspect boot.success and stability across seeds
-or larger B when differences between intervals are small.
+of accurate tail quantiles. Check stability across seeds or larger B when
+differences between intervals are small.
 
 9. RESULTS
 -----------
@@ -268,11 +271,10 @@ The primary iRBCrd() result fields are:
   ci_irbc             Analytic interval, lower then upper.
   estimate_irbc_boot  Same point estimate, when boot.ci = TRUE.
   ci_irbc_boot        Bootstrap interval, lower then upper.
-  h.requested        Requested bandwidths.
+  h                  Requested bandwidths, as a named minus/plus list.
   h.minus, h.plus     Effective cutoff bandwidths.
-  Q.minus, Q.plus     Side-specific Q values.
-  res, q.method      Residual and Q choices.
-  boot.B, boot.success, boot.wild, boot.probs, boot.mhat, boot.t
+  res                Residual specification.
+  boot.B, boot.wild, boot.t
                      Bootstrap details; boot.t requires boot.keep = TRUE.
 
 Design-specific details include uncorrected discontinuities, bias components,

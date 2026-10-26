@@ -53,7 +53,7 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
     args$covs <- covs
     args$fuzzy.boot.weights <- fuzzy.boot.weights
     args$gamma.boot.weights <- gamma.boot.weights
-    return(do.call(.irbcrd_kink, args))
+    return(.irbcrd_output(do.call(.irbcrd_kink, args)))
   }
 
   if (has.fuzzy) {
@@ -70,7 +70,24 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
     args$covs <- covs
     return(do.call(iRBCcrd, args))
   }
-  do.call(.irbcrd_sharp, args)
+  .irbcrd_output(do.call(.irbcrd_sharp, args))
+}
+
+
+# Numerical component fits retain working quantities until joint inference is
+# complete. Public results omit them, including in nested component objects.
+.irbcrd_output <- function(out) {
+  if (!is.null(out[["h.requested"]])) out$h <- out[["h.requested"]]
+  omit <- c("Q.minus", "Q.plus", "q.method", "boot.success", "boot.mhat",
+            "boot.probs", "h.requested")
+  out[intersect(names(out), omit)] <- NULL
+  for (field in c("sharp.outcome", "sharp.treatment")) {
+    if (!is.null(out[[field]])) out[[field]] <- .irbcrd_output(out[[field]])
+  }
+  for (field in c("sharp.covariates", "sharp.components")) {
+    if (!is.null(out[[field]])) out[[field]] <- lapply(out[[field]], .irbcrd_output)
+  }
+  out
 }
 
 
@@ -907,7 +924,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
   }
   boot.B <- as.integer(boot.B)
 
-  sharp.y <- iRBCrd(y = y, x = x, h = h, c = c, p = p, kersel = kersel,
+  sharp.y <- .irbcrd_sharp(y = y, x = x, h = h, c = c, p = p, kersel = kersel,
                     res = res, alpha = alpha, fast = fast,
                     boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
                     boot.wild = boot.wild, boot.keep = FALSE,
@@ -915,7 +932,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
                     h.plus = h.plus, h.minus = h.minus,
                     kersel.plus = kersel.plus, kersel.minus = kersel.minus,
                     q.method = q.method)
-  sharp.d <- iRBCrd(y = d, x = x, h = h, c = c, p = p, kersel = kersel,
+  sharp.d <- .irbcrd_sharp(y = d, x = x, h = h, c = c, p = p, kersel = kersel,
                     res = res, alpha = alpha, fast = fast,
                     boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
                     boot.wild = boot.wild, boot.keep = FALSE,
@@ -1128,7 +1145,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
     if (boot.keep == TRUE) out$boot.t <- boot.t
   }
 
-  return(out)
+  .irbcrd_output(out)
 }
 
 
@@ -1319,7 +1336,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
   bwcheck <- .validate_bwcheck(bwcheck)
   boot.wild <- .irbcrd_normalize_boot_wild(boot.wild)
 
-  sharp.y <- iRBCrd(
+  sharp.y <- .irbcrd_sharp(
     y = y, x = x, h = h, c = c, p = p, kersel = kersel,
     res = res, alpha = alpha, fast = fast,
     boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
@@ -1332,7 +1349,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
 
   covariate.names <- colnames(covs)
   sharp.covs <- lapply(seq_len(ncol(covs)), function(jj) {
-    iRBCrd(
+    .irbcrd_sharp(
       y = covs[, jj], x = x, h = h, c = c, p = p, kersel = kersel,
       res = sharp.y$res, alpha = alpha, fast = fast,
       boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
@@ -1579,7 +1596,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
     }
   }
 
-  out
+  .irbcrd_output(out)
 }
 
 
@@ -1666,7 +1683,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   gamma.boot.weights <-
     .irbcrd_normalize_gamma_boot_weights(gamma.boot.weights)
 
-  sharp.y <- iRBCrd(
+  sharp.y <- .irbcrd_sharp(
     y = y, x = x, h = h, c = c, p = p, kersel = kersel,
     res = res, alpha = alpha, fast = fast,
     boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
@@ -1676,7 +1693,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     kersel.plus = kersel.plus, kersel.minus = kersel.minus,
     q.method = q.method
   )
-  sharp.d <- iRBCrd(
+  sharp.d <- .irbcrd_sharp(
     y = d, x = x, h = h, c = c, p = p, kersel = kersel,
     res = sharp.y$res, alpha = alpha, fast = fast,
     boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
@@ -1688,7 +1705,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   )
 
   sharp.covs <- lapply(seq_len(ncol(covs)), function(jj) {
-    iRBCrd(
+    .irbcrd_sharp(
       y = covs[, jj], x = x, h = h, c = c, p = p, kersel = kersel,
       res = sharp.y$res, alpha = alpha, fast = fast,
       boot.ci = FALSE, boot.B = NULL, boot.seed = NULL,
@@ -2059,7 +2076,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     }
   }
 
-  out
+  .irbcrd_output(out)
 }
 
 

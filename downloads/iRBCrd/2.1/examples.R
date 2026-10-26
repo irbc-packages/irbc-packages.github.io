@@ -57,7 +57,7 @@ print(kink_fits$adjusted_fuzzy$ci_irbc_boot)
 # Population kink Q, retaining the full sandwich variance:
 asymptotic_kink <- iRBCrd(y, x, h = .7, deriv = 1, p = 2,
                           q.method = "asymptotic", fast = FALSE)
-print(c(Q_minus = asymptotic_kink$Q.minus, Q_plus = asymptotic_kink$Q.plus))
+print(asymptotic_kink$ci_irbc)
 
 # Optional estimated kink bandwidths: use the same deriv, p, fuzzy, and covs
 # settings in the selector and both estimators. Use "cerrd" for CE selection.
