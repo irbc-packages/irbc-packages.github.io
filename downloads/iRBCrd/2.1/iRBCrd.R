@@ -7,48 +7,38 @@
 ######################################################################################
 
 
-iRBCrd <- function(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
-                   alpha = NULL, fast = NULL,
+iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
+                   fuzzy = NULL, kink = NULL, covs = NULL,
+                   res = NULL, alpha = NULL, bwcheck = .bwcheck_default,
+                   fast = NULL,
                    boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
                    boot.wild = NULL, boot.keep = NULL,
-                   bwcheck = .bwcheck_default,
-                   h.plus = NULL, h.minus = NULL,
-                   kersel.plus = NULL, kersel.minus = NULL,
-                   q.method = NULL,
-                   fuzzy = NULL, covs = NULL,
-                   fuzzy.boot.weights = NULL, gamma.boot.weights = NULL,
-                   d = NULL, deriv = 0) {
+                   q.method = NULL, fuzzy.boot.weights = NULL,
+                   gamma.boot.weights = NULL) {
 
-  if (!is.numeric(deriv) || length(deriv) != 1L ||
-      !is.finite(deriv) || !(deriv %in% c(0, 1))) {
-    stop("'deriv' must be 0 (level RD) or 1 (kink RD).")
+  if (!is.null(kink) && (!is.logical(kink) || length(kink) != 1L || is.na(kink))) {
+    stop("'kink' must be NULL, FALSE (level RD), or TRUE (kink RD).")
   }
 
-  if (!is.null(fuzzy) && !is.null(d)) {
-    stop("Supply the treatment through either 'fuzzy' or its alias 'd', not both.")
-  }
-  if (is.null(fuzzy)) fuzzy <- d
   has.fuzzy <- !is.null(fuzzy)
   has.covs <- !is.null(covs)
 
   if (!has.fuzzy && !is.null(fuzzy.boot.weights)) {
-    stop("'fuzzy.boot.weights' requires a fuzzy RD design: supply 'fuzzy' or 'd'.")
+    stop("'fuzzy.boot.weights' requires a fuzzy RD design: supply 'fuzzy'.")
   }
   if (!(has.fuzzy && has.covs) && !is.null(gamma.boot.weights)) {
     stop("'gamma.boot.weights' is supported only for covariate-adjusted fuzzy RD: supply treatment and 'covs'.")
   }
 
   args <- list(
-    y = y, x = x, h = h, c = c, p = p, kersel = kersel, res = res,
+    y = y, x = x, h = h, c = c, p = p, kersel = kernel, res = res,
     alpha = alpha, fast = fast,
     boot.ci = boot.ci, boot.B = boot.B, boot.seed = boot.seed,
     boot.wild = boot.wild, boot.keep = boot.keep, bwcheck = bwcheck,
-    h.plus = h.plus, h.minus = h.minus,
-    kersel.plus = kersel.plus, kersel.minus = kersel.minus,
     q.method = q.method
   )
 
-  if (deriv == 1) {
+  if (isTRUE(kink)) {
     args$d <- fuzzy
     args$covs <- covs
     args$fuzzy.boot.weights <- fuzzy.boot.weights
@@ -78,6 +68,14 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
 # complete. Public results omit them, including in nested component objects.
 .irbcrd_output <- function(out) {
   if (!is.null(out[["h.requested"]])) out$h <- out[["h.requested"]]
+  for (suffix in c("", ".minus", ".plus")) {
+    old <- paste0("kersel", suffix)
+    names(out)[names(out) == old] <- paste0("kernel", suffix)
+  }
+  if (!is.null(out[["deriv"]])) {
+    out[["deriv"]] <- out[["deriv"]] == 1L
+    names(out)[names(out) == "deriv"] <- "kink"
+  }
   omit <- c("Q.minus", "Q.plus", "q.method", "boot.success", "boot.mhat",
             "boot.probs", "h.requested")
   out[intersect(names(out), omit)] <- NULL
@@ -230,7 +228,7 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
     h.side$plus <- h.plus
   }
 
-  k.side <- parse_two_sided(kersel, "kersel")
+  k.side <- parse_two_sided(kersel, "kernel")
   if (!is.null(kersel.minus)) k.side$minus <- kersel.minus
   if (!is.null(kersel.plus)) k.side$plus <- kersel.plus
   k.side$minus <- .canonical_kernel(k.side$minus)
@@ -2245,9 +2243,9 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   }
   h.requested <- pair(h, h.minus, h.plus, "h")
   if (!is.numeric(h.requested) || any(!is.finite(h.requested)) || any(h.requested <= 0)) {
-    stop("'h' and its side overrides must be positive finite bandwidths.")
+    stop("'h' must contain positive finite bandwidths.")
   }
-  kernels <- pair(kersel, kersel.minus, kersel.plus, "kersel", "tri")
+  kernels <- pair(kersel, kersel.minus, kersel.plus, "kernel", "tri")
   kernels <- vapply(kernels, .canonical_kernel, character(1))
   sides <- list(
     minus = .irbcrd_kink_side(values[minus, , drop = FALSE], x[minus], c,

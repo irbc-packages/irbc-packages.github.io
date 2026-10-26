@@ -28,8 +28,8 @@ and bootstrap confidence intervals for:
   - Sharp and fuzzy kink RD, with or without covariate adjustment.
 
 Use iRBCrd() for every design. Supply fuzzy for a treatment variable and covs
-for covariate adjustment. Add deriv = 1 for a kink design. The function selects
-the appropriate implementation from these inputs; deriv = 0 remains the default.
+for covariate adjustment. Add kink = TRUE for a kink design. The function selects
+the appropriate implementation from these inputs; NULL or FALSE selects level RD.
 
 This is a distribution of R functions loaded with source(), not an installable
 R package or a CRAN release. No license file is included. Bootstrap inference
@@ -90,33 +90,31 @@ bias-corrected estimate.
 
 4. FUNCTION INTERFACE
 ---------------------
-  iRBCrd(y, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
-         alpha = NULL, fast = NULL,
+  iRBCrd(y, x, h, c = NULL, p = NULL, kernel = NULL,
+         fuzzy = NULL, kink = NULL, covs = NULL,
+         res = NULL, alpha = NULL, bwcheck = .bwcheck_default,
+         fast = NULL,
          boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
          boot.wild = NULL, boot.keep = NULL,
-         bwcheck = .bwcheck_default,
-         h.plus = NULL, h.minus = NULL,
-         kersel.plus = NULL, kersel.minus = NULL,
-         q.method = NULL,
-         fuzzy = NULL, covs = NULL,
-         fuzzy.boot.weights = NULL, gamma.boot.weights = NULL,
-         d = NULL, deriv = 0)
+         q.method = NULL, fuzzy.boot.weights = NULL,
+         gamma.boot.weights = NULL)
 
 Design and estimation:
   y, x       Numeric vectors in the same observation order. Prepare finite,
              complete-case data before calling the function.
   h          Required positive bandwidth, scalar or a pair ordered left, right.
   c          Cutoff; default 0. The right side includes x = c.
-  deriv      0 for discontinuities in levels (default); 1 for slope changes.
   p          Local-polynomial order; default 1 for levels and 2 for kinks.
              Use a nonnegative integer for levels, and p >= 1 for kinks.
+  kernel     "tri" (default), "epa", or "uni". Long aliases "triangular",
+             "epanechnikov", and "uniform" are accepted. A pair is allowed,
+             ordered left, right, or named left/right or minus/plus.
   fuzzy      Treatment vector. NULL selects sharp RD. This is not a Boolean.
              Binary, discrete, and continuous treatments are accepted.
-  d          Alias for fuzzy. Do not supply both fuzzy and d.
+  kink       NULL or FALSE for discontinuities in levels; TRUE for slope changes.
+             Supply a logical flag, not a numeric derivative order.
   covs       Numeric covariate vector, matrix, or data frame; default NULL.
              One row per observation. Both equations are adjusted in fuzzy RD.
-  kersel     "tri" (default), "epa", or "uni". Long aliases "triangular",
-             "epanechnikov", and "uniform" are accepted. A pair is allowed.
   res        "irbc-hc0" through "irbc-hc3", or "cct-hc0" through "cct-hc3".
              The default is pointwise iRBC-HC3 ("irbc-hc3").
   alpha      Significance level; default 0.05 gives a 95% confidence interval.
@@ -124,10 +122,6 @@ Design and estimation:
              "asymptotic" when fast = TRUE.
   fast       Standard-error shortcut; default FALSE. See Sections 7 and 11.
   bwcheck    Minimum-neighbor regularization rule; default 21. NULL disables it.
-  h.minus, h.plus
-             Optional left/right bandwidth overrides.
-  kersel.minus, kersel.plus
-             Optional left/right kernel overrides.
 
 Bootstrap:
   boot.ci    TRUE to add a bootstrap interval; default FALSE.
@@ -151,11 +145,11 @@ The function does not select an optimal bandwidth. Supply h, for example from
 rdrobust::rdbwselect(), with the appropriate fuzzy and covariate inputs in the
 selector. For a kink, also set deriv = 1 and the same p in the selector.
 An unnamed bandwidth pair is left, right. Named pairs accept
-left/right or minus/plus. A scalar applies to both sides. Explicit side
-arguments override those choices. Kernels follow the same convention.
+left/right or minus/plus. A scalar applies to both sides. Supply bandwidths
+only through h. Kernels follow the same convention through kernel.
 
   fit <- iRBCrd(y, x, h = c(left = 0.5, right = 0.7),
-                kersel = c(left = "tri", right = "epa"))
+                kernel = c(left = "tri", right = "epa"))
 
 When using rdrobust for a comparison with rho = 1, explicitly use the same
 selected h and set b = h there. For an exact bandwidth comparison, consider
@@ -164,8 +158,8 @@ bwcheck = NULL here, provided all needed local fits remain nonsingular.
 With bwcheck = k, a local bandwidth is enlarged if necessary to reach the kth
 closest observation, or the farthest observation if fewer than k are present.
 This counts observations, not distinct running-variable values. The initial
-cutoff regularization uses pooled observations for scalar h without side
-overrides, and side-specific observations for paired bandwidth inputs.
+cutoff regularization uses pooled observations for scalar h,
+and side-specific observations for paired bandwidth inputs.
 Auxiliary fits can enlarge their own bandwidths as well.
 
 For kink RD, cutoff regularization is side-specific even for scalar h. The
@@ -175,9 +169,9 @@ any further bandwidth enlargement in the level pilots used for the bias.
 Kink bias, variance, and bootstrap calculations use the same coefficient maps,
 including when a pilot neighborhood is enlarged.
 
-Returned h is a named list of requested minus/plus bandwidths after any side
-overrides. h.minus and h.plus report the effective cutoff bandwidths, not the
-bandwidth at every auxiliary fitting point. This
+Returned h is a named list of requested minus/plus bandwidths.
+h.minus and h.plus are output fields, not inputs; they report the effective
+cutoff bandwidths, not the bandwidth at every auxiliary fitting point. This
 rule does not guarantee full rank with ties, collinearity, or zero endpoint
 kernel weights. Do not trim the data to the cutoff h window before calling
 iRBCrd(): auxiliary fits need observations outside that window. Bias and
@@ -273,6 +267,8 @@ The primary iRBCrd() result fields are:
   ci_irbc_boot        Bootstrap interval, lower then upper.
   h                  Requested bandwidths, as a named minus/plus list.
   h.minus, h.plus     Effective cutoff bandwidths.
+  kernel, kernel.minus, kernel.plus
+                     Kernel specifications used on the two sides.
   res                Residual specification.
   boot.B, boot.wild, boot.t
                      Bootstrap details; boot.t requires boot.keep = TRUE.
@@ -298,12 +294,12 @@ the ZIP.
 
 11. KINK RD
 -----------
-Select deriv = 1 to estimate slope changes at the cutoff:
+Select kink = TRUE to estimate slope changes at the cutoff:
 
-  sharp_kink <- iRBCrd(y, x, h, deriv = 1)
-  fuzzy_kink <- iRBCrd(y, x, h, deriv = 1, fuzzy = d)
-  adjusted_kink <- iRBCrd(y, x, h, deriv = 1, covs = Z)
-  adjusted_fuzzy_kink <- iRBCrd(y, x, h, deriv = 1, fuzzy = d, covs = Z)
+  sharp_kink <- iRBCrd(y, x, h, kink = TRUE)
+  fuzzy_kink <- iRBCrd(y, x, h, kink = TRUE, fuzzy = d)
+  adjusted_kink <- iRBCrd(y, x, h, kink = TRUE, covs = Z)
+  adjusted_fuzzy_kink <- iRBCrd(y, x, h, kink = TRUE, fuzzy = d, covs = Z)
 
 The default p = 2 is local quadratic. Supply p = 1 for local linear slope
 estimation, or a higher order if appropriate.
@@ -355,7 +351,7 @@ order LEVEL fits. The same ordinary pilot maps enter the bias correction,
 variance, and bootstrap DGP. res = "loo" uses unscaled pointwise residuals.
 
 The usual estimate_irbc, ci_irbc, estimate_irbc_boot, and ci_irbc_boot fields
-are retained. Kink outputs additionally identify deriv, p, design, component
+are retained. Kink outputs additionally identify kink = TRUE, p, design, component
 slope estimates, linear.weights, kink.weights, and pilot.h. Vector entries in
 kink.weights and the residuals follow original observation order within each
 side. Sharp kink returns tau.hat; fuzzy kink returns zeta.hat. Both bootstrap
