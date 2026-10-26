@@ -26,8 +26,8 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
   if (!has.fuzzy && !is.null(fuzzy.boot.weights)) {
     stop("'fuzzy.boot.weights' requires a fuzzy RD design: supply 'fuzzy'.")
   }
-  if (!(has.fuzzy && has.covs) && !is.null(gamma.boot.weights)) {
-    stop("'gamma.boot.weights' is supported only for covariate-adjusted fuzzy RD: supply treatment and 'covs'.")
+  if (!has.covs && !is.null(gamma.boot.weights)) {
+    stop("'gamma.boot.weights' requires covariate adjustment: supply 'covs'.")
   }
 
   args <- list(
@@ -58,6 +58,7 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
   }
   if (has.covs) {
     args$covs <- covs
+    args$gamma.boot.weights <- gamma.boot.weights
     return(do.call(iRBCcrd, args))
   }
   .irbcrd_output(do.call(.irbcrd_sharp, args))
@@ -184,8 +185,8 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
 
 
   if (is.null(boot.keep)) {
-    boot.keep <- TRUE
-  } else if (!is.logical(boot.keep) || length(boot.keep) > 1) {
+    boot.keep <- FALSE
+  } else if (!is.logical(boot.keep) || length(boot.keep) != 1L || is.na(boot.keep)) {
     stop("'boot.keep' must be a single TRUE/FALSE")
   }
 
@@ -690,7 +691,8 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
   if (is.null(fuzzy.boot.weights)) {
     return("fixed")
   }
-  if (!is.character(fuzzy.boot.weights) || length(fuzzy.boot.weights) > 1) {
+  if (!is.character(fuzzy.boot.weights) || length(fuzzy.boot.weights) != 1L ||
+      is.na(fuzzy.boot.weights)) {
     stop("'fuzzy.boot.weights' must be 'fixed' or 'bootstrap'")
   }
 
@@ -715,7 +717,7 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
   }
   if (!is.character(gamma.boot.weights) || length(gamma.boot.weights) != 1L ||
       is.na(gamma.boot.weights)) {
-    stop("'gamma.boot.weights' must be NULL or 'fixed'; covariate-adjusted fuzzy RD keeps the original-sample covariate coefficients fixed.")
+    stop("'gamma.boot.weights' must be 'fixed' or 'bootstrap'")
   }
 
   key <- tolower(trimws(gamma.boot.weights))
@@ -724,7 +726,11 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
   if (key %in% c("fixed", "original", "sample", "hat")) {
     return("fixed")
   }
-  stop("'gamma.boot.weights' must be NULL or 'fixed'; covariate-adjusted fuzzy RD keeps the original-sample covariate coefficients fixed.")
+  if (key %in% c("bootstrap", "boot", "star", "starred",
+                 "bootstrapweights", "bootweights")) {
+    return("bootstrap")
+  }
+  stop("'gamma.boot.weights' must be 'fixed' or 'bootstrap'")
 }
 
 
@@ -910,7 +916,10 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
   if (is.null(alpha)) alpha <- 0.05
   if (is.null(fast)) fast <- FALSE
   if (is.null(boot.ci)) boot.ci <- FALSE
-  if (is.null(boot.keep)) boot.keep <- TRUE
+  if (is.null(boot.keep)) boot.keep <- FALSE
+  if (!is.logical(boot.keep) || length(boot.keep) != 1L || is.na(boot.keep)) {
+    stop("'boot.keep' must be a single TRUE/FALSE.")
+  }
   bwcheck <- .validate_bwcheck(bwcheck)
   boot.wild <- .irbcrd_normalize_boot_wild(boot.wild)
   fuzzy.boot.weights <- .irbcrd_normalize_fuzzy_boot_weights(fuzzy.boot.weights)
@@ -1266,6 +1275,21 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
 }
 
 
+# Refit common covariate slopes on the joint bootstrap data. A singular draw
+# is omitted from the bootstrap distribution without aborting other draws.
+.irbcrd_boot_covariate_slopes <- function(values, response.columns, covariate.columns,
+                                          x, x0, h.plus, h.minus, p,
+                                          kersel.plus, kersel.minus) {
+  tryCatch(lapply(response.columns, function(j) {
+    .irbcrd_common_covariate_slope(
+      y = values[, j], covs = values[, covariate.columns, drop = FALSE],
+      x = x, x0 = x0, h.plus = h.plus, h.minus = h.minus, p = p,
+      kersel.plus = kersel.plus, kersel.minus = kersel.minus
+    )$gamma.hat
+  }), error = function(e) NULL)
+}
+
+
 ## Covariate-adjusted sharp RD with a CCF&T common covariate coefficient.
 iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
                     kersel = NULL, res = NULL,
@@ -1275,7 +1299,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
                     bwcheck = .bwcheck_default,
                     h.plus = NULL, h.minus = NULL,
                     kersel.plus = NULL, kersel.minus = NULL,
-                    q.method = NULL) {
+                    q.method = NULL, gamma.boot.weights = NULL) {
 
   if (!is.numeric(y) || !is.numeric(x)) {
     stop("'y' and 'x' must be numeric vectors.")
@@ -1314,7 +1338,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
   if (!is.logical(boot.ci) || length(boot.ci) != 1L || is.na(boot.ci)) {
     stop("'boot.ci' must be a single TRUE/FALSE.")
   }
-  if (is.null(boot.keep)) boot.keep <- TRUE
+  if (is.null(boot.keep)) boot.keep <- FALSE
   if (!is.logical(boot.keep) || length(boot.keep) != 1L || is.na(boot.keep)) {
     stop("'boot.keep' must be a single TRUE/FALSE.")
   }
@@ -1333,6 +1357,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
 
   bwcheck <- .validate_bwcheck(bwcheck)
   boot.wild <- .irbcrd_normalize_boot_wild(boot.wild)
+  gamma.boot.weights <- .irbcrd_normalize_gamma_boot_weights(gamma.boot.weights)
 
   sharp.y <- .irbcrd_sharp(
     y = y, x = x, h = h, c = c, p = p, kersel = kersel,
@@ -1545,6 +1570,12 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
       NA_real_, nrow = boot.B, ncol = n.components,
       dimnames = list(NULL, component.names)
     )
+    if (boot.keep) {
+      boot.gamma <- matrix(NA_real_, boot.B, ncol(covs),
+                           dimnames = list(NULL, covariate.names))
+      boot.linear.weights <- matrix(NA_real_, boot.B, n.components,
+                                    dimnames = list(NULL, component.names))
+    }
     for (bb in seq_len(boot.B)) {
       e.boot <- .irbcrd_wild_draws(length(boot.local.indices), boot.wild)
       component.boot <- component.data
@@ -1564,7 +1595,22 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
           as.numeric(sharp.y$Q.minus) * (ghat.minus.boot - ghat.minus)
       )
       boot.t.components[bb, ] <- T.components
-      boot.t[bb] <- as.numeric(crossprod(crd.weights, T.components))
+      gamma.use <- gamma.hat
+      if (gamma.boot.weights == "bootstrap") {
+        gamma.boot <- .irbcrd_boot_covariate_slopes(
+          component.boot, 1L, seq.int(2L, n.components), x, c,
+          sharp.y$h.plus, sharp.y$h.minus, p,
+          sharp.y$kersel.plus, sharp.y$kersel.minus
+        )
+        if (is.null(gamma.boot)) next
+        gamma.use <- gamma.boot[[1L]]
+      }
+      weights.use <- c(1, -gamma.use)
+      boot.t[bb] <- as.numeric(crossprod(weights.use, T.components))
+      if (boot.keep) {
+        boot.gamma[bb, ] <- gamma.use
+        boot.linear.weights[bb, ] <- weights.use
+      }
     }
 
     boot.t.ok <- boot.t[is.finite(boot.t)]
@@ -1586,11 +1632,14 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
       boot.B = boot.B, boot.success = boot.success,
       boot.impl = "plug-in", boot.probs = boot.probs,
       boot.mhat = mhat, boot.wild = boot.wild,
-      bootstrap.weights = "fixed-gamma"
+      gamma.boot.weights = gamma.boot.weights,
+      bootstrap.weights = paste0(gamma.boot.weights, "-gamma")
     ))
     if (boot.keep == TRUE) {
       out$boot.t <- boot.t
       out$boot.t.components <- boot.t.components
+      out$boot.gamma <- boot.gamma
+      out$boot.linear.weights <- boot.linear.weights
     }
   }
 
@@ -1654,7 +1703,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   if (!is.logical(boot.ci) || length(boot.ci) != 1L || is.na(boot.ci)) {
     stop("'boot.ci' must be a single TRUE/FALSE.")
   }
-  if (is.null(boot.keep)) boot.keep <- TRUE
+  if (is.null(boot.keep)) boot.keep <- FALSE
   if (!is.logical(boot.keep) || length(boot.keep) != 1L || is.na(boot.keep)) {
     stop("'boot.keep' must be a single TRUE/FALSE.")
   }
@@ -1675,9 +1724,6 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   boot.wild <- .irbcrd_normalize_boot_wild(boot.wild)
   fuzzy.boot.weights <-
     .irbcrd_normalize_fuzzy_boot_weights(fuzzy.boot.weights)
-  if (fuzzy.boot.weights != "fixed") {
-    stop("'fuzzy.boot.weights' must be NULL or 'fixed' for covariate-adjusted fuzzy RD; bootstrap fuzzy weights are no longer supported for this design.")
-  }
   gamma.boot.weights <-
     .irbcrd_normalize_gamma_boot_weights(gamma.boot.weights)
 
@@ -2009,9 +2055,18 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
       )
       names(T.components) <- component.names
 
-      # Combine the paper's fixed fuzzy weights and fixed covariate slopes.
       gamma.y.use <- gamma.y.hat
       gamma.d.use <- gamma.d.hat
+      if (gamma.boot.weights == "bootstrap") {
+        gamma.boot <- .irbcrd_boot_covariate_slopes(
+          component.boot, 1:2, seq.int(3L, n.components), x, c,
+          sharp.y$h.plus, sharp.y$h.minus, p,
+          sharp.y$kersel.plus, sharp.y$kersel.minus
+        )
+        if (is.null(gamma.boot)) next
+        gamma.y.use <- gamma.boot[[1L]]
+        gamma.d.use <- gamma.boot[[2L]]
+      }
 
       tau.z.boot <- tau.components.boot[covariate.names]
       tau.d.adj.boot <- as.numeric(
@@ -2019,6 +2074,14 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
           crossprod(gamma.d.use, tau.z.boot)
       )
       fuzzy.weights.use <- frd.weights
+      if (fuzzy.boot.weights == "bootstrap") {
+        if (!is.finite(tau.d.adj.boot) ||
+            abs(tau.d.adj.boot) <= sqrt(.Machine$double.eps)) next
+        fuzzy.weights.use <- c(
+          reduced.form = 1 / tau.d.adj.boot,
+          first.stage = -tau.y.adj.hat / (tau.d.adj.hat * tau.d.adj.boot)
+        )
+      }
 
       linear.weights.use <- c(
         outcome = fuzzy.weights.use[["reduced.form"]],
@@ -2187,7 +2250,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
   if (alpha <= 0 || alpha >= 1) stop("'alpha' must be strictly between zero and one.")
   fast <- flag(fast, "fast")
   boot.ci <- flag(boot.ci, "boot.ci")
-  boot.keep <- flag(boot.keep, "boot.keep", TRUE)
+  boot.keep <- flag(boot.keep, "boot.keep", FALSE)
   if (is.null(boot.B)) boot.B <- if (boot.ci) 999L else 0L else {
     boot.B <- scalar(boot.B, "boot.B", 1, .Machine$integer.max, TRUE)
   }
@@ -2204,10 +2267,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     stop("'fuzzy' must be a finite numeric treatment vector of the same length as x.")
   }
   fuzzy.boot.weights <- .irbcrd_normalize_fuzzy_boot_weights(fuzzy.boot.weights)
-  if (fuzzy && adjusted && fuzzy.boot.weights != "fixed") {
-    stop("Covariate-adjusted fuzzy kink RD requires fixed fuzzy weights.")
-  }
-  if (fuzzy && adjusted) .irbcrd_normalize_gamma_boot_weights(gamma.boot.weights)
+  gamma.boot.weights <- .irbcrd_normalize_gamma_boot_weights(gamma.boot.weights)
   values <- matrix(y, ncol = 1L, dimnames = list(NULL, "outcome"))
   if (fuzzy) values <- cbind(values, treatment = d)
   if (adjusted) {
@@ -2378,6 +2438,14 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     boot.components <- matrix(NA_real_, boot.B, ncol(values),
                               dimnames = list(NULL, component.names))
     boot.first <- rep(NA_real_, boot.B)
+    if (boot.keep && adjusted) {
+      boot.gamma.y <- boot.gamma.d <- matrix(NA_real_, boot.B, length(z.names),
+                                             dimnames = list(NULL, z.names))
+      boot.linear.weights <- matrix(NA_real_, boot.B, ncol(values),
+                                    dimnames = list(NULL, component.names))
+      if (fuzzy) boot.fuzzy.weights <- matrix(NA_real_, boot.B, 2L,
+                                               dimnames = list(NULL, names(fw)))
+    }
     for (bb in seq_len(boot.B)) {
       e <- .irbcrd_wild_draws(length(active), boot.wild)
       starred <- values
@@ -2388,14 +2456,36 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
         sides$minus$Q * (gm - sides$minus$raw)
       boot.components[bb, ] <- statistic
       weights <- linear.weights
+      wy.use <- wy
+      wd.use <- wd
+      if (adjusted && gamma.boot.weights == "bootstrap") {
+        gamma.boot <- .irbcrd_boot_covariate_slopes(
+          starred, if (fuzzy) 1:2 else 1L, z.names, x, c, hp, hm, p,
+          kernels[2L], kernels[1L]
+        )
+        if (is.null(gamma.boot)) next
+        wy.use[z.names] <- -gamma.boot[[1L]]
+        if (fuzzy) wd.use[z.names] <- -gamma.boot[[2L]]
+        weights <- if (fuzzy) fw[1L] * wy.use + fw[2L] * wd.use else wy.use
+      }
       if (fuzzy) {
-        boot.first[bb] <- sum(wd * (gp - gm))
+        fuzzy.weights.use <- fw
+        boot.first[bb] <- sum(wd.use * (gp - gm))
         if (fuzzy.boot.weights == "bootstrap") {
           if (!is.finite(boot.first[bb]) || abs(boot.first[bb]) <= sqrt(.Machine$double.eps)) next
-          weights <- wy / boot.first[bb] - tau.y * wd / (tau.d * boot.first[bb])
+          weights <- wy.use / boot.first[bb] - tau.y * wd.use / (tau.d * boot.first[bb])
+          fuzzy.weights.use <- c(1 / boot.first[bb], -tau.y / (tau.d * boot.first[bb]))
         }
       }
       boot.t[bb] <- sum(weights * statistic)
+      if (boot.keep && adjusted) {
+        boot.gamma.y[bb, ] <- -wy.use[z.names]
+        boot.linear.weights[bb, ] <- weights
+        if (fuzzy) {
+          boot.gamma.d[bb, ] <- -wd.use[z.names]
+          boot.fuzzy.weights[bb, ] <- fuzzy.weights.use
+        }
+      }
     }
     success <- sum(is.finite(boot.t))
     mhat <- se / se.us
@@ -2413,11 +2503,23 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     out$boot.probs <- probs
     out$boot.mhat <- mhat
     out$boot.wild <- boot.wild
-    if (adjusted) out$bootstrap.weights <- if (fuzzy) "fixed-fuzzy/fixed-gamma" else "fixed-gamma"
+    if (adjusted) {
+      out$gamma.boot.weights <- gamma.boot.weights
+      out$bootstrap.weights <- paste0(
+        if (fuzzy) paste0(fuzzy.boot.weights, "-fuzzy/"), gamma.boot.weights, "-gamma")
+    }
     if (boot.keep) {
       out$boot.t <- boot.t
       out$boot.t.components <- boot.components
       if (fuzzy) out$boot.adjusted.first.stage <- boot.first
+      if (adjusted) {
+        out$boot.linear.weights <- boot.linear.weights
+        if (fuzzy) {
+          out$boot.gamma.y <- boot.gamma.y
+          out$boot.gamma.d <- boot.gamma.d
+          out$boot.fuzzy.weights <- boot.fuzzy.weights
+        } else out$boot.gamma <- boot.gamma.y
+      }
     }
   }
   out

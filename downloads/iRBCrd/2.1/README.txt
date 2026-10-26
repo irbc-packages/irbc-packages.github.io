@@ -46,6 +46,7 @@ CHANGELOG.txt     Release overview.
 smoke_test.R      Standalone interface and bootstrap checks.
 kink_test.R       Independent kink formulas, bootstrap refits, and option checks.
 output_test.R     Returned-field and bandwidth-reporting checks for all designs.
+bootstrap_weights_test.R  Independent refits for bootstrap weighting choices.
 VERIFICATION.txt  Summary of the development regression checks.
 CONTACT_SOURCES.txt  Sources used to verify the institutional contacts.
 
@@ -64,6 +65,7 @@ To run the examples or standalone checks after setting the working directory:
   source("smoke_test.R")
   source("kink_test.R")
   source("output_test.R")
+  source("bootstrap_weights_test.R")
 
 The functions can be used in R, RStudio, or via Rscript. They do not require
 RStudio or a compiler. This release was tested in R 4.5.2 on macOS.
@@ -132,12 +134,13 @@ Bootstrap:
              A supplied seed is passed to set.seed() after integer conversion.
              The prior random-number state is not restored.
   boot.wild  "rademacher" (default), "mammen", or "normal".
-  boot.keep  Retain bootstrap statistic draws; default TRUE.
+  boot.keep  Retain bootstrap statistic draws and weight diagnostics; default FALSE.
   fuzzy.boot.weights
-             Plain fuzzy RD: "fixed" (default) or "bootstrap".
-             Covariate-adjusted fuzzy RD: "fixed" only.
+             "fixed" (default) or "bootstrap" in every fuzzy design,
+             including kink and covariate-adjusted designs.
   gamma.boot.weights
-             Covariate-adjusted fuzzy RD: "fixed" only (default).
+             "fixed" (default) or "bootstrap" in every covariate-adjusted
+             design, including sharp, fuzzy, and kink designs.
 
 5. BANDWIDTHS AND DATA
 ----------------------
@@ -237,9 +240,19 @@ in levels, and Q uses the slope-specific adjustment.
 
 The sharp, fuzzy, and covariate-adjusted statistics use the relevant component
 linear combination. By default, fuzzy and covariate weights remain fixed.
-Plain fuzzy RD additionally allows bootstrapped fuzzy weights as specified
-by fuzzy.boot.weights. Covariate-adjusted designs keep gamma fixed; adjusted
-fuzzy RD also keeps its fuzzy linearization weights fixed.
+The two choices can be changed independently in level and kink designs:
+  fuzzy.boot.weights = "bootstrap" uses the bootstrap first-stage discontinuity
+  (or slope change) in the denominator of the fuzzy weights. The original
+  outcome-to-treatment ratio remains fixed, as in the linearized statistic.
+  gamma.boot.weights = "bootstrap" refits the common covariate coefficients
+  using bootstrap outcomes and covariates. Fuzzy designs also refit the
+  treatment equation. The bootstrap first stage is adjusted using whichever
+  covariate coefficients are selected by gamma.boot.weights.
+Thus, covariate-adjusted fuzzy designs allow all four fixed/bootstrap
+combinations. These options change the bootstrap statistic's combination
+weights, not the original analytic estimate, variance, or Q adjustments.
+Draws with singular covariate refits or undefined fuzzy weights are omitted
+from the interval calculation.
 
 Let se_us denote the standard error of the uncorrected Q-weighted component
 combination, and mhat = se_irbc/se_us. The interval uses empirical quantiles
@@ -313,7 +326,11 @@ The primary iRBCrd() result fields are:
                      Kernel specifications used on the two sides.
   res                Residual specification.
   boot.B, boot.wild, boot.t
-                     Bootstrap details; boot.t requires boot.keep = TRUE.
+                     Bootstrap details; boot.t is omitted by default.
+
+Set boot.keep = TRUE to retain bootstrap statistics and, where applicable,
+component statistics, covariate coefficients, and combination weights for
+individual draws. This does not change point estimates or confidence intervals.
 
 Design-specific details include uncorrected discontinuities, bias components,
 first-stage estimates, covariate slopes, covariance matrices, and sharp.*
