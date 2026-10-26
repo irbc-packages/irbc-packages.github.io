@@ -1,10 +1,10 @@
 iRBCrd for Stata / Mata
-Version 2.0 -- October 23, 2026
+Version 2.0 -- October 26, 2026
 
 OVERVIEW
 --------
 The irbcrd command provides bias-corrected point estimates, analytic confidence
-intervals, and plug-in wild bootstrap confidence intervals for sharp, fuzzy,
+intervals, and bootstrap confidence intervals for sharp, fuzzy,
 covariate-adjusted sharp, and covariate-adjusted fuzzy RD designs.
 Covariate-adjusted fuzzy RD adjusts both outcome and treatment equations.
 
@@ -89,7 +89,7 @@ noregularize         Disable regularization; equivalent to bwcheck(0).
 gloo                 Leave-one-out auxiliary bias fits; off by default.
                       Requires nonzero x and outcome, treatment, and covariate
                       entries in the selected sample.
-bootstrap            Add the plug-in wild bootstrap CI; analytic CI remains.
+bootstrap            Add the bootstrap CI; analytic CI remains.
 reps(#)              Bootstrap draws, default 999. At least 2 finite draws
                       are required for a CI. More are needed for reliable tails.
 wild(...)            rademacher (default), mammen, or normal; rad and gaussian
@@ -178,9 +178,9 @@ local computational inputs, not full-sample fitted-value diagnostics.
 
 REFERENCES
 ----------
-Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E.:
-  Improved Inference for Regression Discontinuity Designs (current manuscript).
-  Earlier public version: https://arxiv.org/abs/2512.00566.
+Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E. (2026):
+  Improved Inference for Nonparametric Regression and Regression-Discontinuity
+  Designs. arXiv:2512.00566. https://arxiv.org/abs/2512.00566.
 Calonico, S., Cattaneo, M. D., Farrell, M. H., and Titiunik, R. (2019):
   Regression Discontinuity Designs Using Covariates, Review of Economics
   and Statistics 101(3), 442-451.

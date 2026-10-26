@@ -20,7 +20,7 @@ Edoardo Zanelli
 1. OVERVIEW
 -----------
 iRBCrd provides bias-corrected point estimates, analytic confidence intervals,
-and plug-in wild bootstrap confidence intervals for:
+and bootstrap confidence intervals for:
   - Sharp regression discontinuity (RD).
   - Fuzzy RD.
   - Covariate-adjusted sharp RD.
@@ -33,7 +33,7 @@ the appropriate implementation from these inputs; deriv = 0 remains the default.
 
 This is a distribution of R functions loaded with source(), not an installable
 R package or a CRAN release. No license file is included. Bootstrap inference
-uses the plug-in wild bootstrap.
+uses a fixed-regressor wild bootstrap.
 
 2. FILES AND LOADING
 --------------------
@@ -80,17 +80,6 @@ RStudio or a compiler. This release was tested in R 4.5.2 on macOS.
   fuzzy_fit <- iRBCrd(y, x, h = 0.6, fuzzy = d)
   adjusted_sharp <- iRBCrd(y, x, h = 0.6, covs = Z)
   adjusted_fuzzy <- iRBCrd(y, x, h = 0.6, fuzzy = d, covs = Z)
-
-  fit <- iRBCrd(y, x, h = 0.6, fuzzy = d, covs = Z,
-                res = "irbc-hc3", q.method = "sample", fast = FALSE,
-                boot.ci = TRUE, boot.B = 999,
-                boot.wild = "rademacher", boot.seed = 17041998)
-  fit$estimate_irbc
-  fit$se_irbc
-  fit$ci_irbc
-  fit$estimate_irbc_boot
-  fit$ci_irbc_boot
-  fit$boot.success
 
 The bandwidth above is illustrative. It is not an estimated optimal bandwidth.
 The bootstrap and analytic reportable estimates are identical. Their intervals
@@ -139,7 +128,7 @@ Design and estimation:
              Optional left/right kernel overrides.
 
 Bootstrap:
-  boot.ci    TRUE to add a plug-in bootstrap interval; default FALSE.
+  boot.ci    TRUE to add a bootstrap interval; default FALSE.
   boot.B     Number of draws; default 999 when boot.ci = TRUE. A supplied
              value must be a positive integer. At least two finite draws are
              needed for an interval; use substantially more for inference.
@@ -225,37 +214,19 @@ without an HC adjustment.
 
 7. Q AND ANALYTIC INFERENCE
 ---------------------------
-q.method = "sample", fast = FALSE uses the finite-sample Q_n values.
-q.method = "asymptotic", fast = FALSE substitutes kernel-specific Q constants
-in the bias, variance, and bootstrap calculations, retaining the full variance
-calculation. For level RD, asymptotic Q is available for p = 1:
-  triangular: 1.4082; Epanechnikov: 1.3571; uniform: 1.2000.
+q.method = "sample" uses finite-sample Q_n values (the default).
+q.method = "asymptotic" uses kernel-specific population values; keep
+fast = FALSE to retain the full variance calculation. Asymptotic Q requires
+p = 1 for level RD and also supports higher orders for kink RD.
+fast = TRUE uses asymptotic Q and a standard-error shortcut for sharp designs;
+joint designs retain full covariance matrices. It cannot use sample Q.
 
-fast = TRUE also requires p = 1 and asymptotic Q. In sharp RD it approximates
-the side-specific standard errors by 0.84, 0.83, or 0.86 times the corresponding
-RBC standard errors for the three kernels. Joint designs instead use their
-full component covariance matrix for the final standard error. fast = TRUE
-cannot be combined with q.method = "sample".
-For kink-specific Q and fast calculations, see Section 11.
+The analytic interval is estimate_irbc +/- qnorm(1-alpha/2) * se_irbc.
+Fuzzy inference corrects the linearized ratio. Covariate-adjusted fuzzy
+inference adjusts both equations and retains their covariance.
 
-Let tau_y, tau_d, and tau_z denote uncorrected discontinuity estimates, and
-B_y, B_d, and B_z their iRBC bias corrections on the estimator scale.
-  Sharp RD: estimate = tau_y - B_y.
-  Fuzzy RD: estimate = tau_y/tau_d - B_y/tau_d + tau_y*B_d/tau_d^2.
-The fuzzy correction is for the linearized ratio; it is not a ratio of two
-separately bias-corrected estimates.
-
-Covariate adjustment estimates common slopes while allowing separate p-th
-order polynomial terms on each side. For sharp RD it adjusts tau_y and B_y
-by gamma' tau_z and gamma' B_z. Fuzzy RD adjusts both outcome and treatment
-discontinuities and their bias corrections before applying the linearized
-ratio correction. Covariances between components are retained.
-
-The analytic interval is the bias-corrected estimate plus/minus
-qnorm(1-alpha/2) * se_irbc.
-
-8. PLUG-IN BOOTSTRAP
---------------------
+8. BOOTSTRAP
+-------------
 The running variable, bandwidths, and Q adjustments are held fixed. For local
 observations, bootstrap outcomes equal pointwise local-polynomial fitted
 values plus HC-adjusted residuals multiplied by wild weights. The same draw
@@ -296,7 +267,7 @@ The primary iRBCrd() result fields are:
   se_irbc             Analytic standard error.
   ci_irbc             Analytic interval, lower then upper.
   estimate_irbc_boot  Same point estimate, when boot.ci = TRUE.
-  ci_irbc_boot        Plug-in bootstrap interval, lower then upper.
+  ci_irbc_boot        Bootstrap interval, lower then upper.
   h.requested        Requested bandwidths.
   h.minus, h.plus     Effective cutoff bandwidths.
   Q.minus, Q.plus     Side-specific Q values.
@@ -311,10 +282,9 @@ support, not a full-sample diagnostic for fitted values.
 
 10. REFERENCES
 ---------------
-Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E.:
-  Improved Inference for Regression Discontinuity Designs (current manuscript).
-  Earlier public version: Improved Inference for Nonparametric Regression
-  and Regression-Discontinuity Designs, https://arxiv.org/abs/2512.00566.
+Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E. (2026):
+  Improved Inference for Nonparametric Regression and Regression-Discontinuity
+  Designs. arXiv:2512.00566. https://arxiv.org/abs/2512.00566.
 Calonico, S., Cattaneo, M. D., Farrell, M. H., and Titiunik, R. (2019):
   Regression Discontinuity Designs Using Covariates, Review of Economics
   and Statistics, 101(3), 442-451.
@@ -326,16 +296,15 @@ the ZIP.
 
 11. KINK RD
 -----------
-The implementation follows the kink subsection and the supplementary kink
-algorithm and auxiliary results in CGNZR1_v4-11 (SG GC MN EZ).
+Select deriv = 1 to estimate slope changes at the cutoff:
 
   sharp_kink <- iRBCrd(y, x, h, deriv = 1)
   fuzzy_kink <- iRBCrd(y, x, h, deriv = 1, fuzzy = d)
   adjusted_kink <- iRBCrd(y, x, h, deriv = 1, covs = Z)
   adjusted_fuzzy_kink <- iRBCrd(y, x, h, deriv = 1, fuzzy = d, covs = Z)
 
-The default p = 2 is local quadratic. Supply p = 1 for the local linear slope
-case displayed in the main kink section, or a higher order if appropriate.
+The default p = 2 is local quadratic. Supply p = 1 for local linear slope
+estimation, or a higher order if appropriate.
 
 Sharp kink estimates the right slope minus the left slope, in units of y/x.
 It does not divide by a known policy-schedule slope change. For that target,
@@ -359,34 +328,20 @@ p-th order pointwise LEVEL fits within side s. The unscaled bias correction
 and corrected coefficient vector are
   B_s = Q_s a_s' (S_s - I) Y_s,
   omega_s = a_s - Q_s (S_s' a_s - a_s).
-Sample Q_s is the ratio of the two leading-polynomial moments:
-  Q_s = [a_s' v_s] / [a_s' (S_s - I) v_s],
-where v_s,i = ((x_i-c)/h_s)^(p+1). With fixed bandwidths this is exactly the
-paper's C_s,k,n / C_s,kLP,n. Using actual coefficient maps also accounts for
-the pilot neighborhoods selected by bandwidth regularization. No higher-order
-derivative of the outcome regression is used in this bias correction.
+Kink Q adjustments use slope-specific bias moments: sample moments by default,
+or population kernel moments for q.method = "asymptotic". Local fits must be
+numerically full rank.
 
-q.method = "asymptotic" substitutes Q_s,k from the population kernel moments.
-These constants are computed with numerical quadrature for the selected p and
-kernel, separately from the variance calculation. For example, the local linear
-triangular-kernel kink Q is approximately 2.567357, not the level-RD value 1.4082.
-The same asymptotic Q applies on the left and right when the kernels match.
-Quadrature and finite-design checks cover p = 1 through 5. Local fits must be
-numerically full rank, especially at higher orders.
-
-With fast = FALSE, analytic variance is the residual sandwich using omega_s.
-With fast = TRUE, asymptotic Q is used and a sharp kink standard error is
-approximated by the corresponding RBC slope standard error times the population
-equivalent-kernel length ratio for the selected p and kernel. These ratios are
-computed numerically, not taken from the level-RD shortcuts. Joint kink designs
-retain the full component covariance matrix. The default is fast = FALSE.
+The default fast = FALSE uses the full residual sandwich variance. fast = TRUE
+uses asymptotic Q and the kink-specific RBC standard-error ratio for sharp
+designs; joint designs retain the full covariance matrix.
 
 Bootstrap DGPs and residuals remain in outcome LEVELS, not slopes:
   Y_i* = ghat_s(X_i) + epshat_i e_i*.
 Cutoff slope fits are then applied to these bootstrap data. The statistic is
   T* = Q_plus (ghat_plus*'(c) - ghat_plus'(c))
      - Q_minus (ghat_minus*'(c) - ghat_minus'(c)).
-This is on the estimator scale: the paper's sqrt(n h^3) factor cancels in the
+This is on the estimator scale: the sqrt(n h^3) normalization cancels in the
 quantile inversion and variance ratio. The bootstrap standard error uses the
 Q_s a_s maps; the analytic standard error uses omega_s. Adjusted probabilities
 and quantile inversion are otherwise as in Section 8. The same multiplier is

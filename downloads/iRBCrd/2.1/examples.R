@@ -23,15 +23,6 @@ results <- do.call(rbind, lapply(fits, function(f) {
 }))
 print(results)
 
-# B = 99 keeps this example quick; use a larger B for substantive inference.
-boot_fit <- iRBCrd(y, x, h = 0.6, fuzzy = d, covs = Z,
-  res = "irbc-hc3", q.method = "sample", fast = FALSE,
-  boot.ci = TRUE, boot.B = 99, boot.wild = "rademacher",
-  boot.seed = 17041998, boot.keep = TRUE)
-print(rbind(analytic = boot_fit$ci_irbc, bootstrap = boot_fit$ci_irbc_boot))
-stopifnot(identical(boot_fit$estimate_irbc, boot_fit$estimate_irbc_boot),
-          boot_fit$boot.success == 99)
-
 # Optional externally estimated bandwidth, requiring rdrobust:
 # install.packages("rdrobust")
 # bw <- rdrobust::rdbwselect(y, x, fuzzy = d, covs = Z,
