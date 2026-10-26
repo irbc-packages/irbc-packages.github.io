@@ -120,7 +120,7 @@ Design and estimation:
   alpha      Significance level; default 0.05 gives a 95% confidence interval.
   q.method   "sample" or "asymptotic". Default "sample" when fast = FALSE;
              "asymptotic" when fast = TRUE.
-  fast       Standard-error shortcut; default FALSE. See Sections 7 and 11.
+  fast       Standard-error shortcut; default FALSE. See Section 8.
   bwcheck    Minimum-neighbor regularization rule; default 21. NULL disables it.
 
 Bootstrap:
@@ -178,51 +178,47 @@ iRBCrd(): auxiliary fits need observations outside that window. Bias and
 variance calculations can involve observations up to 2h from the cutoff when
 regularization is disabled; pointwise residual fits use their own neighbors.
 
-6. RESIDUALS
-------------
-iRBC-HCk:
-  Fit a p-th order local polynomial separately on each cutoff side, centered
-  at each X_i. The raw residual is Y_i - ghat(X_i). There is no additional
-  Q-weighted bias subtraction in this fitted value. Apply the HC adjustment
-  using the corresponding pointwise fit's leverage and local sample size.
+6. EXTENSIONS
+-------------
+All extensions use iRBCrd() and support analytic and bootstrap inference.
+The design inputs can be combined; bandwidth and kernel conventions remain
+as in Section 5.
 
-CCT-HCk:
-  Fit a (p+1)-th order local polynomial at the cutoff on each side. Evaluate
-  it at X_i, subtract it from Y_i, and apply the HC adjustment using that
-  cutoff fit's leverage and local sample size.
+Kink RD:
+  Set kink = TRUE to estimate the right slope minus the left slope at the
+  cutoff. The default is local quadratic estimation (p = 2); p = 1 or a
+  higher order can also be supplied. Sharp kink reports the slope difference
+  in units of y/x, without dividing by a known policy-schedule slope change.
+  For that target, rescale y by the known change before estimation. Bias
+  correction uses slope-specific Q adjustments; residuals and bootstrap
+  outcomes remain in levels.
 
-For raw residual e_i and leverage ell_i:
-  HC0: e_i
-  HC1: e_i / sqrt((n_local - df) / n_local)
-  HC2: e_i / sqrt(1 - ell_i)
-  HC3: e_i / (1 - ell_i)
+    kink_fit <- iRBCrd(y, x, h, kink = TRUE)
 
-Here df = p+1 for iRBC residuals and df = p+2 for CCT residuals; n_local counts
-nonzero-kernel observations. The same residuals are used in the variance
-estimator and bootstrap data-generating process. In joint designs, residuals
-are evaluated componentwise and their cross-products enter the covariance.
+Fuzzy RD:
+  Supply the treatment vector through fuzzy. The target is the outcome
+  discontinuity divided by the treatment discontinuity, or the corresponding
+  ratio of slope changes when kink = TRUE. iRBC corrects the linearized ratio
+  and retains the covariance between the outcome and treatment components.
+  A near-zero first stage prevents ordinary ratio inference; a nonzero
+  estimate alone does not establish a strong first stage. Bootstrap weighting
+  choices are described in Section 7.
 
-"hc0" through "hc3" select iRBC-HCk; "rbc-hc0" through "rbc-hc3" select
-CCT-HCk. The returned res field uses "irbc-hck" or "cct-hck", respectively,
-with k replaced by 0, 1, 2, or 3.
+    fuzzy_fit <- iRBCrd(y, x, h, fuzzy = d)
 
-res = "loo" uses unscaled residuals from the ordinary pointwise auxiliary fits,
-without an HC adjustment.
+Covariate adjustment:
+  Supply covs to add common covariate slopes to the side-specific order-p
+  weighted regressions. The outcome discontinuity is adjusted by the
+  estimated covariate coefficients times the covariate discontinuities.
+  Fuzzy designs adjust both outcome and treatment equations, using separate
+  coefficient vectors and retaining their covariance. In kink designs, the
+  adjustment uses covariate slope changes. Preserving the unadjusted target
+  requires covariate balance at the cutoff: continuity for level RD and no
+  slope change for kink RD, alongside the design's identification conditions.
 
-7. Q AND ANALYTIC INFERENCE
----------------------------
-q.method = "sample" uses finite-sample Q_n values (the default).
-q.method = "asymptotic" uses kernel-specific population values; keep
-fast = FALSE to retain the full variance calculation. Asymptotic Q requires
-p = 1 for level RD and also supports higher orders for kink RD.
-fast = TRUE uses asymptotic Q and a standard-error shortcut for sharp designs;
-joint designs retain full covariance matrices. It cannot use sample Q.
+    adjusted_fit <- iRBCrd(y, x, h, covs = Z)
 
-The analytic interval is estimate_irbc +/- qnorm(1-alpha/2) * se_irbc.
-Fuzzy inference corrects the linearized ratio. Covariate-adjusted fuzzy
-inference adjusts both equations and retains their covariance.
-
-8. BOOTSTRAP
+7. BOOTSTRAP
 -------------
 The running variable, bandwidths, and Q adjustments are held fixed. For local
 observations, bootstrap outcomes equal pointwise local-polynomial fitted
@@ -234,6 +230,10 @@ unchanged; the bandwidth is not re-estimated in each bootstrap draw.
 For each sharp component j, the bootstrap statistic is
   T_j* = Q_plus [ghat_j,plus*(c) - ghat_j,plus(c)]
        - Q_minus [ghat_j,minus*(c) - ghat_j,minus(c)].
+
+For kink designs, replace the cutoff level fits in this expression with
+cutoff slope fits. Bootstrap outcomes and residuals are still constructed
+in levels, and Q uses the slope-specific adjustment.
 
 The sharp, fuzzy, and covariate-adjusted statistics use the relevant component
 linear combination. By default, fuzzy and covariate weights remain fixed.
@@ -257,6 +257,48 @@ especially at high confidence levels. B = 999 is a default, not a guarantee
 of accurate tail quantiles. Check stability across seeds or larger B when
 differences between intervals are small.
 
+8. OTHER DESIGN CHOICES
+-----------------------
+Residuals:
+  iRBC-HCk fits a p-th order local polynomial separately on each cutoff side,
+  centered at each X_i. The raw residual is Y_i - ghat(X_i). There is no
+  additional Q-weighted bias subtraction in this fitted value. The HC
+  adjustment uses the pointwise fit's leverage and local sample size.
+
+  CCT-HCk fits a (p+1)-th order local polynomial at the cutoff on each side.
+  Evaluate it at X_i, subtract it from Y_i, and apply the HC adjustment using
+  that cutoff fit's leverage and local sample size. Both residual choices
+  use fits in levels, including for kink designs.
+
+For raw residual e_i and leverage ell_i:
+  HC0: e_i
+  HC1: e_i / sqrt((n_local - df) / n_local)
+  HC2: e_i / sqrt(1 - ell_i)
+  HC3: e_i / (1 - ell_i)
+
+Here df = p+1 for iRBC residuals and df = p+2 for CCT residuals; n_local counts
+nonzero-kernel observations. The same residuals are used in the variance
+estimator and bootstrap data-generating process. In joint designs, residuals
+are evaluated componentwise and their cross-products enter the covariance.
+
+"hc0" through "hc3" select iRBC-HCk; "rbc-hc0" through "rbc-hc3" select
+CCT-HCk. The returned res field uses "irbc-hck" or "cct-hck", respectively,
+with k replaced by 0, 1, 2, or 3.
+
+res = "loo" uses unscaled residuals from the ordinary pointwise auxiliary fits,
+without an HC adjustment.
+
+Q and analytic inference:
+  q.method = "sample" uses finite-sample Q_n values (the default).
+  q.method = "asymptotic" uses kernel-specific population values; keep
+  fast = FALSE to retain the full variance calculation. Asymptotic Q requires
+  p = 1 for level RD and also supports higher orders for kink RD.
+  fast = TRUE uses asymptotic Q and a standard-error shortcut for sharp designs,
+  with slope-specific constants for kink RD; joint designs retain full
+  covariance matrices. It cannot use sample Q.
+
+The analytic interval is estimate_irbc +/- qnorm(1-alpha/2) * se_irbc.
+
 9. RESULTS
 -----------
 The primary iRBCrd() result fields are:
@@ -278,6 +320,11 @@ first-stage estimates, covariate slopes, covariance matrices, and sharp.*
 component objects. Residual arrays are computational inputs over their local
 support, not a full-sample diagnostic for fitted values.
 
+Kink results also report kink = TRUE, p, design, linear.weights, kink.weights,
+and pilot.h. Component estimates are slope changes. Vectors in kink.weights
+and the residuals follow the original observation order within each side.
+Sharp kink returns tau.hat; fuzzy kink returns zeta.hat.
+
 10. REFERENCES
 ---------------
 Cavaliere, G., Goncalves, S., Nielsen, M. O., and Zanelli, E. (2026):
@@ -291,71 +338,3 @@ The code is supplied as R functions. No install.packages("iRBCrd") or
 library(iRBCrd) step applies to this distribution. See CHANGELOG.txt for the
 release overview and VERIFICATION.txt for tests performed before preparing
 the ZIP.
-
-11. KINK RD
------------
-Select kink = TRUE to estimate slope changes at the cutoff:
-
-  sharp_kink <- iRBCrd(y, x, h, kink = TRUE)
-  fuzzy_kink <- iRBCrd(y, x, h, kink = TRUE, fuzzy = d)
-  adjusted_kink <- iRBCrd(y, x, h, kink = TRUE, covs = Z)
-  adjusted_fuzzy_kink <- iRBCrd(y, x, h, kink = TRUE, fuzzy = d, covs = Z)
-
-The default p = 2 is local quadratic. Supply p = 1 for local linear slope
-estimation, or a higher order if appropriate.
-
-Sharp kink estimates the right slope minus the left slope, in units of y/x.
-It does not divide by a known policy-schedule slope change. For that target,
-rescale the outcome by the known change before estimation. Fuzzy kink estimates
-the outcome slope change divided by the treatment slope change, with the same
-linearized bias correction as fuzzy level RD. A near-zero first-stage slope
-change prevents ordinary ratio inference; a nonzero estimate alone does not
-establish that the first stage is strong.
-
-For covariate adjustment, the common covariate coefficients come from weighted
-regressions in levels with separate side-specific p-th order polynomials. The
-weights are K((x-c)/h_s)/h_s, as in the existing covariate implementation and
-rdrobust. The outcome slope change is adjusted by gamma_y' times the vector
-of covariate slope changes; fuzzy kink also adjusts the treatment slope change
-using its own gamma_d. For this to preserve the unadjusted kink target, the
-covariate conditional means must have no slope change at the cutoff, in addition
-to the smoothness and identification conditions appropriate to the design.
-
-Let a_s be the coefficient vector for the cutoff slope, and S_s the matrix of
-p-th order pointwise LEVEL fits within side s. The unscaled bias correction
-and corrected coefficient vector are
-  B_s = Q_s a_s' (S_s - I) Y_s,
-  omega_s = a_s - Q_s (S_s' a_s - a_s).
-Kink Q adjustments use slope-specific bias moments: sample moments by default,
-or population kernel moments for q.method = "asymptotic". Local fits must be
-numerically full rank.
-
-The default fast = FALSE uses the full residual sandwich variance. fast = TRUE
-uses asymptotic Q and the kink-specific RBC standard-error ratio for sharp
-designs; joint designs retain the full covariance matrix.
-
-Bootstrap DGPs and residuals remain in outcome LEVELS, not slopes:
-  Y_i* = ghat_s(X_i) + epshat_i e_i*.
-Cutoff slope fits are then applied to these bootstrap data. The statistic is
-  T* = Q_plus (ghat_plus*'(c) - ghat_plus'(c))
-     - Q_minus (ghat_minus*'(c) - ghat_minus'(c)).
-This is on the estimator scale: the sqrt(n h^3) normalization cancels in the
-quantile inversion and variance ratio. The bootstrap standard error uses the
-Q_s a_s maps; the analytic standard error uses omega_s. Adjusted probabilities
-and quantile inversion are otherwise as in Section 8. The same multiplier is
-used across all components of an observation. Fuzzy and covariate combination
-weights follow the same choices as in level RD.
-
-CCT-HCk uses cutoff (p+1)-th order LEVEL fits, and iRBC-HCk uses pointwise p-th
-order LEVEL fits. The same ordinary pilot maps enter the bias correction,
-variance, and bootstrap DGP. res = "loo" uses unscaled pointwise residuals.
-
-The usual estimate_irbc, ci_irbc, estimate_irbc_boot, and ci_irbc_boot fields
-are retained. Kink outputs additionally identify kink = TRUE, p, design, component
-slope estimates, linear.weights, kink.weights, and pilot.h. Vector entries in
-kink.weights and the residuals follow original observation order within each
-side. Sharp kink returns tau.hat; fuzzy kink returns zeta.hat. Both bootstrap
-and analytic reportable estimates equal the analytically corrected estimate.
-
-Use the unified iRBCrd() entry point for all kink designs. Numerical results
-for the retained level-RD specifications are unchanged by this version.
