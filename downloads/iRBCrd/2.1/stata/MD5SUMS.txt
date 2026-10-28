@@ -1,0 +1,3 @@
+819269a084ee938ac0644614bce0a56c README.txt
+37b73dec210b62385221d7f09ac7fcaa examples.do
+cc2b157757245731dedfedfe3fe45052 iRBCrd_Stata_2.1.zip
