@@ -1,24 +1,28 @@
 ######################################################################################
 ## iRBCrd: improved robust bias correction for RD designs
 ## Authors: Giuseppe Cavaliere, Sílvia Gonçalves, Morten Ø. Nielsen, & Edoardo Zanelli
-## version: 2.1 (26.10.2026)
+## version: 2.1 (29.10.2026)
 ## Contacts: giuseppe.cavaliere@unibo.it; silvia.goncalves@mcgill.ca;
 ##           mon@econ.au.dk; ez@econ.au.dk
 ######################################################################################
 
 
 iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
-                   fuzzy = NULL, kink = NULL, covs = NULL,
-                   res = NULL, alpha = NULL, bwcheck = .bwcheck_default,
+                   fuzzy = NULL, deriv = NULL, covs = NULL,
+                   res = NULL, level = 95, bwcheck = .bwcheck_default,
                    fast = NULL,
                    boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
                    boot.wild = NULL, boot.keep = NULL,
                    q.method = NULL, fuzzy.boot.weights = NULL,
                    gamma.boot.weights = NULL) {
 
-  if (!is.null(kink) && (!is.logical(kink) || length(kink) != 1L || is.na(kink))) {
-    stop("'kink' must be NULL, FALSE (level RD), or TRUE (kink RD).")
+  if (is.null(deriv)) deriv <- 0L
+  if (!is.numeric(deriv) || length(deriv) != 1L ||
+      !is.finite(deriv) || !(deriv %in% c(0, 1))) {
+    stop("'deriv' must be 0 (level RD) or 1 (kink RD).")
   }
+  deriv <- as.integer(deriv)
+  alpha <- .irbcrd_alpha(level)
 
   has.fuzzy <- !is.null(fuzzy)
   has.covs <- !is.null(covs)
@@ -38,15 +42,17 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
     q.method = q.method
   )
 
-  if (isTRUE(kink)) {
+  if (deriv == 1L) {
     args$d <- fuzzy
     args$covs <- covs
     args$fuzzy.boot.weights <- fuzzy.boot.weights
     args$gamma.boot.weights <- gamma.boot.weights
-    return(.irbcrd_output(do.call(.irbcrd_kink, args)))
+    return(.irbcrd_output(do.call(.irbcrd_kink, args), level = level))
   }
 
   if (has.fuzzy) {
+    args$alpha <- NULL
+    args$level <- level
     args$d <- fuzzy
     args$fuzzy.boot.weights <- fuzzy.boot.weights
     if (has.covs) {
@@ -57,34 +63,43 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
     return(do.call(iRBCfrd, args))
   }
   if (has.covs) {
+    args$alpha <- NULL
+    args$level <- level
     args$covs <- covs
     args$gamma.boot.weights <- gamma.boot.weights
     return(do.call(iRBCcrd, args))
   }
-  .irbcrd_output(do.call(.irbcrd_sharp, args))
+  .irbcrd_output(do.call(.irbcrd_sharp, args), level = level)
+}
+
+
+.irbcrd_alpha <- function(level) {
+  if (!is.numeric(level) || length(level) != 1L ||
+      !is.finite(level) || level <= 0 || level >= 100) {
+    stop("'level' must be a confidence percentage strictly between 0 and 100.")
+  }
+  (100 - level) / 100
 }
 
 
 # Numerical component fits retain working quantities until joint inference is
 # complete. Public results omit them, including in nested component objects.
-.irbcrd_output <- function(out) {
+.irbcrd_output <- function(out, level = NULL) {
   if (!is.null(out[["h.requested"]])) out$h <- out[["h.requested"]]
   for (suffix in c("", ".minus", ".plus")) {
     old <- paste0("kersel", suffix)
     names(out)[names(out) == old] <- paste0("kernel", suffix)
   }
-  if (!is.null(out[["deriv"]])) {
-    out[["deriv"]] <- out[["deriv"]] == 1L
-    names(out)[names(out) == "deriv"] <- "kink"
-  }
+  out$deriv <- if (is.null(out[["deriv"]])) 0L else as.integer(out[["deriv"]])
+  if (!is.null(level)) out$level <- level
   omit <- c("Q.minus", "Q.plus", "q.method", "boot.success", "boot.mhat",
-            "boot.probs", "h.requested")
+            "boot.probs", "h.requested", "alpha")
   out[intersect(names(out), omit)] <- NULL
   for (field in c("sharp.outcome", "sharp.treatment")) {
-    if (!is.null(out[[field]])) out[[field]] <- .irbcrd_output(out[[field]])
+    if (!is.null(out[[field]])) out[[field]] <- .irbcrd_output(out[[field]], level = level)
   }
   for (field in c("sharp.covariates", "sharp.components")) {
-    if (!is.null(out[[field]])) out[[field]] <- lapply(out[[field]], .irbcrd_output)
+    if (!is.null(out[[field]])) out[[field]] <- lapply(out[[field]], .irbcrd_output, level = level)
   }
   out
 }
@@ -892,7 +907,7 @@ iRBCrd <- function(y, x, h, c = NULL, p = NULL, kernel = NULL,
 
 
 iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
-                    alpha = NULL, fast = NULL,
+                    level = 95, fast = NULL,
                     boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
                     boot.wild = NULL, boot.keep = NULL,
                     bwcheck = .bwcheck_default,
@@ -913,7 +928,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
 
   if (is.null(c)) c <- 0
   if (is.null(p)) p <- 1
-  if (is.null(alpha)) alpha <- 0.05
+  alpha <- .irbcrd_alpha(level)
   if (is.null(fast)) fast <- FALSE
   if (is.null(boot.ci)) boot.ci <- FALSE
   if (is.null(boot.keep)) boot.keep <- FALSE
@@ -1152,7 +1167,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
     if (boot.keep == TRUE) out$boot.t <- boot.t
   }
 
-  .irbcrd_output(out)
+  .irbcrd_output(out, level = level)
 }
 
 
@@ -1293,7 +1308,7 @@ iRBCfrd <- function(y, d, x, h, c = NULL, p = NULL, kersel = NULL, res = NULL,
 ## Covariate-adjusted sharp RD with a CCF&T common covariate coefficient.
 iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
                     kersel = NULL, res = NULL,
-                    alpha = NULL, fast = NULL,
+                    level = 95, fast = NULL,
                     boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
                     boot.wild = NULL, boot.keep = NULL,
                     bwcheck = .bwcheck_default,
@@ -1325,11 +1340,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
     stop("'p' must be a non-negative integer.")
   }
   p <- as.integer(p)
-  if (is.null(alpha)) alpha <- 0.05
-  if (!is.numeric(alpha) || length(alpha) != 1L ||
-      !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
-    stop("'alpha' must be strictly between zero and one.")
-  }
+  alpha <- .irbcrd_alpha(level)
   if (is.null(fast)) fast <- FALSE
   if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
     stop("'fast' must be a single TRUE/FALSE.")
@@ -1643,7 +1654,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
     }
   }
 
-  .irbcrd_output(out)
+  .irbcrd_output(out, level = level)
 }
 
 
@@ -1651,7 +1662,7 @@ iRBCcrd <- function(y, covs, x, h, c = NULL, p = NULL,
 ## in the reduced-form and first-stage equations.
 iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
                      kersel = NULL, res = NULL,
-                     alpha = NULL, fast = NULL,
+                     level = 95, fast = NULL,
                      boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
                      boot.wild = NULL, boot.keep = NULL,
                      bwcheck = .bwcheck_default,
@@ -1690,11 +1701,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     stop("'p' must be a non-negative integer.")
   }
   p <- as.integer(p)
-  if (is.null(alpha)) alpha <- 0.05
-  if (!is.numeric(alpha) || length(alpha) != 1L ||
-      !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
-    stop("'alpha' must be strictly between zero and one.")
-  }
+  alpha <- .irbcrd_alpha(level)
   if (is.null(fast)) fast <- FALSE
   if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
     stop("'fast' must be a single TRUE/FALSE.")
@@ -2137,7 +2144,7 @@ iRBCcfrd <- function(y, d, covs, x, h, c = NULL, p = NULL,
     }
   }
 
-  .irbcrd_output(out)
+  .irbcrd_output(out, level = level)
 }
 
 

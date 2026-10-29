@@ -12,7 +12,7 @@ Z <- cbind(z = z)
 
 # The bandwidth is illustrative, not an estimated optimum.
 fits <- list(
-  sharp = iRBCrd(y, x, h = 0.6),
+  sharp = iRBCrd(y, x, h = 0.6, deriv = 0, level = 95),
   fuzzy = iRBCrd(y, x, h = 0.6, fuzzy = d),
   adjusted_sharp = iRBCrd(y, x, h = 0.6, covs = Z),
   adjusted_fuzzy = iRBCrd(y, x, h = 0.6, fuzzy = d, covs = Z)
@@ -41,10 +41,10 @@ Z <- cbind(z = .3 * x + rnorm(length(x)))
 d <- .3 * x + 2 * pmax(x, 0) + .2 * Z[, 1] + rnorm(length(x), sd = .1)
 y <- 1 + x + x^2 + .8 * d + .4 * Z[, 1] + rnorm(length(x), sd = .15)
 kink_fits <- list(
-  sharp = iRBCrd(y, x, h = .7, kink = TRUE),
-  fuzzy = iRBCrd(y, x, h = .7, kink = TRUE, fuzzy = d),
-  adjusted_sharp = iRBCrd(y, x, h = .7, kink = TRUE, covs = Z),
-  adjusted_fuzzy = iRBCrd(y, x, h = .7, kink = TRUE, fuzzy = d, covs = Z,
+  sharp = iRBCrd(y, x, h = .7, deriv = 1),
+  fuzzy = iRBCrd(y, x, h = .7, deriv = 1, fuzzy = d),
+  adjusted_sharp = iRBCrd(y, x, h = .7, deriv = 1, covs = Z),
+  adjusted_fuzzy = iRBCrd(y, x, h = .7, deriv = 1, fuzzy = d, covs = Z,
     q.method = "sample", res = "cct-hc3", boot.ci = TRUE, boot.B = 99,
     boot.wild = "rademacher", boot.seed = 17041998)
 )
@@ -55,16 +55,16 @@ print(do.call(rbind, lapply(kink_fits, function(f) {
 print(kink_fits$adjusted_fuzzy$ci_irbc_boot)
 
 # Population kink Q, retaining the full sandwich variance:
-asymptotic_kink <- iRBCrd(y, x, h = .7, kink = TRUE, p = 2,
+asymptotic_kink <- iRBCrd(y, x, h = .7, deriv = 1, p = 2,
                           q.method = "asymptotic", fast = FALSE)
 print(asymptotic_kink$ci_irbc)
 
-# Optional estimated kink bandwidths: rdrobust uses deriv = 1, whereas
-# iRBCrd uses kink = TRUE. Match p, fuzzy, and covs. Use "cerrd" for CE selection.
+# Optional estimated kink bandwidths: both functions use deriv = 1.
+# Match p, fuzzy, and covs. Use "cerrd" for CE selection.
 # bw <- rdrobust::rdbwselect(y, x, deriv = 1, p = 2, q = 3,
 #   fuzzy = d, covs = Z, kernel = "triangular", vce = "hc3", bwselect = "mserd")
 # h <- as.numeric(bw$bws[1, 1:2])
-# kink <- iRBCrd(y, x, h = h, kink = TRUE, p = 2, fuzzy = d, covs = Z,
+# kink <- iRBCrd(y, x, h = h, deriv = 1, p = 2, fuzzy = d, covs = Z,
 #   res = "cct-hc3", bwcheck = NULL, boot.ci = TRUE, boot.B = 999,
 #   boot.seed = 17041998)
 # rbc <- rdrobust::rdrobust(y, x, deriv = 1, p = 2, q = 3,

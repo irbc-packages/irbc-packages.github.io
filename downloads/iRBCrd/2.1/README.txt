@@ -1,5 +1,5 @@
 iRBCrd: IMPROVED ROBUST BIAS CORRECTION FOR RD DESIGNS
-Version 2.1 -- October 26, 2026
+Version 2.1 -- October 29, 2026
 Website: https://irbc-packages.github.io/
 
 AUTHORS AND CONTACTS
@@ -28,8 +28,8 @@ and bootstrap confidence intervals for:
   - Sharp and fuzzy kink RD, with or without covariate adjustment.
 
 Use iRBCrd() for every design. Supply fuzzy for a treatment variable and covs
-for covariate adjustment. Add kink = TRUE for a kink design. The function selects
-the appropriate implementation from these inputs; NULL or FALSE selects level RD.
+for covariate adjustment. Add deriv = 1 for a kink design. The function selects
+the appropriate implementation from these inputs; deriv = NULL or 0 selects level RD.
 
 This is a distribution of R functions loaded with source(), not an installable
 R package or a CRAN release. No license file is included. Bootstrap inference
@@ -93,8 +93,8 @@ bias-corrected estimate.
 4. FUNCTION INTERFACE
 ---------------------
   iRBCrd(y, x, h, c = NULL, p = NULL, kernel = NULL,
-         fuzzy = NULL, kink = NULL, covs = NULL,
-         res = NULL, alpha = NULL, bwcheck = .bwcheck_default,
+         fuzzy = NULL, deriv = NULL, covs = NULL,
+         res = NULL, level = 95, bwcheck = .bwcheck_default,
          fast = NULL,
          boot.ci = NULL, boot.B = NULL, boot.seed = NULL,
          boot.wild = NULL, boot.keep = NULL,
@@ -113,13 +113,14 @@ Design and estimation:
              ordered left, right, or named left/right or minus/plus.
   fuzzy      Treatment vector. NULL selects sharp RD. This is not a Boolean.
              Binary, discrete, and continuous treatments are accepted.
-  kink       NULL or FALSE for discontinuities in levels; TRUE for slope changes.
-             Supply a logical flag, not a numeric derivative order.
+  deriv      Derivative order: 0 for discontinuities in levels, 1 for slope
+             changes. NULL defaults to 0. Only numeric 0 and 1 are accepted.
   covs       Numeric covariate vector, matrix, or data frame; default NULL.
              One row per observation. Both equations are adjusted in fuzzy RD.
   res        "irbc-hc0" through "irbc-hc3", or "cct-hc0" through "cct-hc3".
              The default is pointwise iRBC-HC3 ("irbc-hc3").
-  alpha      Significance level; default 0.05 gives a 95% confidence interval.
+  level      Confidence level in percent; default 95 gives a 95% interval.
+             Supply a finite number strictly between 0 and 100.
   q.method   "sample" or "asymptotic". Default "sample" when fast = FALSE;
              "asymptotic" when fast = TRUE.
   fast       Standard-error shortcut; default FALSE. See Section 8.
@@ -188,7 +189,7 @@ The design inputs can be combined; bandwidth and kernel conventions remain
 as in Section 5.
 
 Kink RD:
-  Set kink = TRUE to estimate the right slope minus the left slope at the
+  Set deriv = 1 to estimate the right slope minus the left slope at the
   cutoff. The default is local quadratic estimation (p = 2); p = 1 or a
   higher order can also be supplied. Sharp kink reports the slope difference
   in units of y/x, without dividing by a known policy-schedule slope change.
@@ -196,12 +197,12 @@ Kink RD:
   correction uses slope-specific Q adjustments; residuals and bootstrap
   outcomes remain in levels.
 
-    kink_fit <- iRBCrd(y, x, h, kink = TRUE)
+    kink_fit <- iRBCrd(y, x, h, deriv = 1)
 
 Fuzzy RD:
   Supply the treatment vector through fuzzy. The target is the outcome
   discontinuity divided by the treatment discontinuity, or the corresponding
-  ratio of slope changes when kink = TRUE. iRBC corrects the linearized ratio
+  ratio of slope changes when deriv = 1. iRBC corrects the linearized ratio
   and retains the covariance between the outcome and treatment components.
   A near-zero first stage prevents ordinary ratio inference; a nonzero
   estimate alone does not establish a strong first stage. Bootstrap weighting
@@ -257,7 +258,7 @@ from the interval calculation.
 Let se_us denote the standard error of the uncorrected Q-weighted component
 combination, and mhat = se_irbc/se_us. The interval uses empirical quantiles
 of the bootstrap statistic at
-  pnorm(mhat * qnorm(c(alpha/2, 1-alpha/2))).
+  pnorm(mhat * qnorm(c((100-level)/200, (100+level)/200))).
 Quantiles use R's type = 7 interpolation and only finite draws. They are
 inverted around the corresponding uncorrected discontinuity or ratio estimate.
 The REPORTABLE bootstrap point estimate is nevertheless the same bias-corrected
@@ -310,7 +311,7 @@ Q and analytic inference:
   with slope-specific constants for kink RD; joint designs retain full
   covariance matrices. It cannot use sample Q.
 
-The analytic interval is estimate_irbc +/- qnorm(1-alpha/2) * se_irbc.
+The analytic interval is estimate_irbc +/- qnorm((100+level)/200) * se_irbc.
 
 9. RESULTS
 -----------
@@ -318,6 +319,8 @@ The primary iRBCrd() result fields are:
   estimate_irbc       Bias-corrected point estimate.
   se_irbc             Analytic standard error.
   ci_irbc             Analytic interval, lower then upper.
+  level               Confidence level in percent.
+  deriv               0 for level RD; 1 for kink RD.
   estimate_irbc_boot  Same point estimate, when boot.ci = TRUE.
   ci_irbc_boot        Bootstrap interval, lower then upper.
   h                  Requested bandwidths, as a named minus/plus list.
@@ -337,7 +340,7 @@ first-stage estimates, covariate slopes, covariance matrices, and sharp.*
 component objects. Residual arrays are computational inputs over their local
 support, not a full-sample diagnostic for fitted values.
 
-Kink results also report kink = TRUE, p, design, linear.weights, kink.weights,
+Kink results also report deriv = 1, p, design, linear.weights, kink.weights,
 and pilot.h. Component estimates are slope changes. Vectors in kink.weights
 and the residuals follow the original observation order within each side.
 Sharp kink returns tau.hat; fuzzy kink returns zeta.hat.
